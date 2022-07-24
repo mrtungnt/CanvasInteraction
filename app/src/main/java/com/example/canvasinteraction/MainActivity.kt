@@ -20,7 +20,7 @@ import com.example.canvasinteraction.ui.theme.CanvasInteractionTheme
 import kotlin.math.*
 
 class MainActivity : ComponentActivity() {
-    val circle = Circle()
+    val clock = ClockGraphics()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -30,23 +30,26 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-//                    Canvas(modifier = Modifier.pointerInput(key1 = Unit) {
-//                        detectTapGestures {
-//                            if (offsetWithinCircle(it, circle.center, circle.radius))
-//                                println("circle was clicked: $it")
-//                        }
-//                    }, onDraw = onDraw)
+                    Canvas(
+                        modifier = Modifier/*.pointerInput(key1 = Unit) {
+                        detectTapGestures {
+                            if (offsetWithinCircle(it, circle.center, circle.radius))
+                                println("circle was clicked: $it")
+                        }
+                    }*/, onDraw = onDraw
+                    )
 
+/*
                     Canvas(modifier = Modifier) {
                         drawIntoCanvas {
-                            val text = "189 Abc xyz"
+                            val text = "9"
                             val paint = android.graphics.Paint().apply {
-                                textSize = 50f
+                                textSize = 60f
                                 color = Color.Red.toArgb()
                             }
                             val rect = Rect()
                             paint.getTextBounds(text, 0, text.length, rect)
-                            val baseline = -rect.top.toFloat() + 10
+                            var baseline = 10 - rect.top.toFloat()
                             it.nativeCanvas.drawText(text, 5.dp.toPx(), baseline, paint)
                             drawLine(
                                 Color.Blue,
@@ -70,99 +73,95 @@ class MainActivity : ComponentActivity() {
                                     baseline + rect.bottom.toFloat()
                                 )
                             )
+
+                            baseline = 10 - rect.top.toFloat() * .5f
+                            it.nativeCanvas.drawText(text, 25.dp.toPx(), baseline, paint)
+
+                            baseline = 10 - rect.top.toFloat() * (5 / 6f)
+                            it.nativeCanvas.drawText(text, 45.dp.toPx(), baseline, paint)
                         }
                     }
+*/
                 }
             }
         }
     }
 
     private val onDraw: DrawScope.() -> Unit = {
-        circle.center = Offset(
+        clock.center = Offset(
             size.width / 2f, size.height / 2f
         )
-        circle.radius = size.minDimension / 3f
+        clock.radius = size.minDimension / 3f
         /*drawCircle(
             color = Color.Green, radius = circle.radius, center = circle.center
         )*/
-        val onePortionDeg = 360.0 / 60
-        val radOf1PortionDeg = Math.toRadians(onePortionDeg).toFloat()
-        val radOfInnerEndStickCircle = circle.radius + 60
+
+        clock.innerEndStickCircleRadius = clock.radius + 60
         drawCircle(
             color = Color.LightGray,
-            radius = radOfInnerEndStickCircle,
-            center = circle.center
+            radius = clock.radius,
+            center = clock.center
         )
-        val radOfOuterEndStickCircle = circle.radius + 90
-        val numberCircleRad = circle.radius + 30
+        clock.outerEndStickCircleRadius = clock.radius + 90
+        clock.numberCircleRadius = clock.radius + 30
+        var strokeWidth = 0f
         for (i in 0..29) { // draw sticks
-            /*drawCircle(
-                color = Color.Magenta,
-                center = Offset(
-                    circle.center.x + (cos(radOf1PortionDeg * i) * radOfInnerEndStickCircle),
-                    circle.center.y - (sin(radOf1PortionDeg * i) * radOfInnerEndStickCircle)
-                ),
-                radius = 8f
-            )
-            drawCircle(
-                color = Color.Magenta,
-                center = Offset(
-                    circle.center.x - (cos(radOf1PortionDeg * i) * radOfInnerEndStickCircle),
-                    circle.center.y + (sin(radOf1PortionDeg * i) * radOfInnerEndStickCircle)
-                ),
-                radius = 8f
-            )*/
+            strokeWidth = if (i.mod(5) == 0) 8f else 2f
+
             drawLine(
                 color = Color.Magenta,
                 start = Offset(
-                    circle.center.x - (cos(radOf1PortionDeg * i) * radOfInnerEndStickCircle),
-                    circle.center.y + (sin(radOf1PortionDeg * i) * radOfInnerEndStickCircle)
+                    clock.center.x - (cos(clock.oneSecondOrMinuteRadian * i) * clock.innerEndStickCircleRadius),
+                    clock.center.y + (sin(clock.oneSecondOrMinuteRadian * i) * clock.innerEndStickCircleRadius)
                 ),
                 end = Offset(
-                    circle.center.x - (cos(radOf1PortionDeg * i) * radOfOuterEndStickCircle),
-                    circle.center.y + (sin(radOf1PortionDeg * i) * radOfOuterEndStickCircle)
+                    clock.center.x - (cos(clock.oneSecondOrMinuteRadian * i) * clock.outerEndStickCircleRadius),
+                    clock.center.y + (sin(clock.oneSecondOrMinuteRadian * i) * clock.outerEndStickCircleRadius)
                 ),
-                strokeWidth = 5f,
+                strokeWidth = strokeWidth,
                 cap = StrokeCap.Round
             )
 
             drawLine(
                 color = Color.Magenta,
                 start = Offset(
-                    circle.center.x + (cos(radOf1PortionDeg * i) * radOfInnerEndStickCircle),
-                    circle.center.y - (sin(radOf1PortionDeg * i) * radOfInnerEndStickCircle)
+                    clock.center.x + (cos(clock.oneSecondOrMinuteRadian * i) * clock.innerEndStickCircleRadius),
+                    clock.center.y - (sin(clock.oneSecondOrMinuteRadian * i) * clock.innerEndStickCircleRadius)
                 ),
                 end = Offset(
-                    circle.center.x + (cos(radOf1PortionDeg * i) * radOfOuterEndStickCircle),
-                    circle.center.y - (sin(radOf1PortionDeg * i) * radOfOuterEndStickCircle)
+                    clock.center.x + (cos(clock.oneSecondOrMinuteRadian * i) * clock.outerEndStickCircleRadius),
+                    clock.center.y - (sin(clock.oneSecondOrMinuteRadian * i) * clock.outerEndStickCircleRadius)
                 ),
-                strokeWidth = 5f,
+                strokeWidth = strokeWidth,
                 cap = StrokeCap.Round
             )
         }
 
         val paint = android.graphics.Paint().apply {
-            textSize = 12.dp.toPx()
+            textSize = 60f
             color = Color.Red.toArgb()
         }
 
-        var radian = Math.toRadians(90.0)
+        var currentRadian = Math.toRadians(90.0)
         var textX = 0f
         var textY = 0f
-        val rect = Rect(0, 0, 10, 10)
-        for (i in 12 downTo 7) { // draw numbers
+        val rect = Rect()
+        val hour12 = 12
+        var relativeNumberBaseline = 0f
+        for (i in hour12 downTo 7) { // draw numbers
+            relativeNumberBaseline = (hour12 - i) / 6f
             paint.getTextBounds("$i", 0, "$i".length, rect)
-            textX =
-                circle.center.x + cos(radian).toFloat() * radOfInnerEndStickCircle
+            /*textX =
+                clock.center.x + cos(currentRadian).toFloat() * clock.innerEndStickCircleRadius
             textY =
-                circle.center.y + sin(radian).toFloat() * radOfInnerEndStickCircle - rect.height() / 2
-            if (cos(radian) in 0f..0.0001f) // since we are going counterclockwise from 12 to 7,
-            // the only one time when cos equals 0 is 12, which is the first loop
+                clock.center.y + sin(currentRadian).toFloat() * clock.innerEndStickCircleRadius - rect.height() / 2*/
+            if (cos(currentRadian) in 0f..0.000001f) // since we are going counterclockwise from 12 to 7,
+            // the only hour when cos equals 0 is 12, which is the first loop
             {
                 textX =
-                    circle.center.x + cos(radian).toFloat() * radOfInnerEndStickCircle - rect.width() / 2
+                    clock.center.x - rect.width() / 2 + rect.left
                 textY =
-                    circle.center.y - sin(radian).toFloat() * radOfInnerEndStickCircle + rect.height()
+                    clock.center.y - sin(currentRadian).toFloat() * clock.innerEndStickCircleRadius - rect.top * relativeNumberBaseline
                 drawIntoCanvas {
                     it.nativeCanvas.drawText(
                         "$i",
@@ -173,23 +172,21 @@ class MainActivity : ComponentActivity() {
                 }
 
                 paint.getTextBounds("${i - 6}", 0, "${i - 6}".length, rect)
-                textX =
-                    circle.center.x - cos(radian).toFloat() * radOfInnerEndStickCircle - rect.width() / 2
                 textY =
-                    circle.center.y + sin(radian).toFloat() * radOfInnerEndStickCircle
+                    clock.center.y + sin(currentRadian).toFloat() * clock.innerEndStickCircleRadius + rect.top * relativeNumberBaseline
                 drawIntoCanvas {
-                    it.nativeCanvas.drawText(
+                    it.nativeCanvas.drawText( // then we draw the opposite number
                         "${i - 6}",
                         textX,
                         textY,
                         paint
                     )
-                } // then we draw the opposite number
+                }
             } else {
                 textX =
-                    circle.center.x + cos(radian).toFloat() * radOfInnerEndStickCircle
+                    clock.center.x + cos(currentRadian).toFloat() * clock.innerEndStickCircleRadius
                 textY =
-                    circle.center.y - sin(radian).toFloat() * radOfInnerEndStickCircle + rect.height() / 2
+                    clock.center.y - sin(currentRadian).toFloat() * clock.innerEndStickCircleRadius + rect.top * relativeNumberBaseline
                 drawIntoCanvas {
                     it.nativeCanvas.drawText(
                         "$i",
@@ -198,72 +195,12 @@ class MainActivity : ComponentActivity() {
                         paint
                     )
                 }
-//                                drawRect(
-//                                    color = Color.Red,
-//                                    Offset(
-//                                        textX,
-//                                        circle.center.y - sin(radian).toFloat() * radOfInnerEndStickCircle + rect.top.toFloat()
-//                                    ),
-//                                    size = Size(rect.width().toFloat(), rect.height().toFloat()),
-//                                    alpha = 1f,
-//                                    style = Fill,
-//                                )
-                val color = Color.Green
-                drawLine(
-                    color,
-                    Offset(
-                        textX,
-                        textY + rect.top
-                    ),
-                    Offset(
-                        textX + rect.width(),
-                        textY + rect.top
-                    ),
-                )
-
-                drawLine(
-                    color,
-                    Offset(
-                        textX + rect.width(),
-                        textY + rect.top
-                    ),
-                    Offset(
-                        textX + rect.width(),
-                        textY - rect.bottom
-                    ),
-                )
-
-                drawLine(
-                    color,
-                    Offset(
-                        textX + rect.width(),
-                        textY - rect.bottom
-                    ),
-                    Offset(
-                        textX,
-                        textY - rect.bottom
-                    ),
-                )
-
-                drawLine(
-                    color,
-                    Offset(
-                        textX,
-                        textY - rect.bottom
-                    ),
-                    Offset(
-                        textX,
-                        textY + rect.top
-                    ),
-                )
-
-
 
                 paint.getTextBounds("${i - 6}", 0, "${i - 6}".length, rect)
                 textX =
-                    circle.center.x - cos(radian).toFloat() * radOfInnerEndStickCircle - rect.width()
+                    clock.center.x - cos(currentRadian).toFloat() * clock.innerEndStickCircleRadius - rect.width()
                 textY =
-                    circle.center.y + sin(radian).toFloat() * radOfInnerEndStickCircle + rect.height() / 2
+                    clock.center.y + sin(currentRadian).toFloat() * clock.innerEndStickCircleRadius + rect.top * relativeNumberBaseline
                 drawIntoCanvas {
                     it.nativeCanvas.drawText(
                         "${i - 6}",
@@ -274,7 +211,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            radian += radOf1PortionDeg * 5
+            currentRadian += clock.oneSecondOrMinuteRadian * 5
         }
     }
 }
@@ -289,4 +226,11 @@ private fun offsetWithinCircle(offset: Offset, centerOffset: Offset, radius: Flo
         )
     )
 
-data class Circle(var center: Offset = Offset(0f, 0f), var radius: Float = 0f)
+class ClockGraphics(var center: Offset = Offset(0f, 0f), var radius: Float = 0f) {
+    var outerEndStickCircleRadius = 0f
+    var innerEndStickCircleRadius = 0f
+    var numberCircleRadius = 0f
+
+    private val oneSecondOrMinuteInterval = 360.0 / 60
+    val oneSecondOrMinuteRadian = Math.toRadians(oneSecondOrMinuteInterval).toFloat()
+}
