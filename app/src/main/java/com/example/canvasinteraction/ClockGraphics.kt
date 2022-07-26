@@ -1,8 +1,9 @@
 package com.example.canvasinteraction
 
+import android.graphics.Paint
 import android.graphics.Rect
 import androidx.compose.foundation.Canvas
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -11,17 +12,15 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.LocalTime
 import kotlin.math.cos
 import kotlin.math.sin
 
 class ClockGraphics(var center: Offset = Offset(0f, 0f), var caseRadius: Float = 0f) {
-    var outerEndStickCircleRadius = 0f
-    private var innerEndStickCircleRadius = 0f
-    private var numberCircleRadius = 0f
-    private val fullClock = 12
-    private val halfClock = 6
-    private val oneSecondOrMinuteInterval = 360.0 / 60
-    private val oneSecondOrMinuteRadian = Math.toRadians(oneSecondOrMinuteInterval).toFloat()
+    private var outerEndStickCircleRadius = 0f
+    private val oneSecondOrMinuteRadian = Math.toRadians(360.0 / 60).toFloat()
     private var stickColor = Color.Black
     var numberColor = Color.Black
     private var smallStroke = 2f
@@ -30,103 +29,125 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var caseRadius: Float =
     private val numberPaint = android.graphics.Paint().apply {
         textSize = 60f
         color = Color.Red.toArgb()
+        isAntiAlias = true
+        isDither = true
+    }
+    private val casePaint = android.graphics.Paint().apply {
+        color = Color.Magenta.toArgb()
+        strokeWidth = 5f
+        style = Paint.Style.STROKE
+        isAntiAlias = true
+        isDither = true
     }
     private var currentRadian = Math.toRadians(90.0)
-    private var textX = 0f
-    private var textY = 0f
-    private val rect = Rect()
+    private val numberBounds = Rect()
 
-    var relativeNumberBaseline = 0f
-    fun draw(drawScope: DrawScope) {
+    fun draw(drawScope: DrawScope, second: Int) {
         center = Offset(drawScope.size.width / 2f, drawScope.size.height / 2f)
         caseRadius = drawScope.size.minDimension / 2.2f
         outerEndStickCircleRadius = caseRadius - 10
-        innerEndStickCircleRadius = caseRadius - 40
-        numberCircleRadius = caseRadius - 50
+        var innerEndStickCircleRadius = outerEndStickCircleRadius - 30
+        var numberCircleRadius = innerEndStickCircleRadius - 15
+        var secHandLength = numberCircleRadius - 100
+
+        drawScope.drawIntoCanvas {
+            it.nativeCanvas.drawCircle(center.x, center.y, caseRadius, casePaint)
+        }
 
         for (i in 0..29) { // draw sticks
-            var strokeWidth = if (i.mod(5) == 0) bigStroke else smallStroke
-
+            var isFactorOf5 = i.mod(5) == 0
+            var stickWidth = if (isFactorOf5) bigStroke else smallStroke
+            val extraLength = if (isFactorOf5) 0f else 10f
             drawScope.drawSticks(
                 Offset(
-                    center.x - (cos(oneSecondOrMinuteRadian * i) * innerEndStickCircleRadius),
-                    center.y + (sin(oneSecondOrMinuteRadian * i) * innerEndStickCircleRadius)
+                    center.x - (cos(oneSecondOrMinuteRadian * i) * (innerEndStickCircleRadius + extraLength)),
+                    center.y + (sin(oneSecondOrMinuteRadian * i) * (innerEndStickCircleRadius + extraLength))
                 ),
                 Offset(
                     center.x - (cos(oneSecondOrMinuteRadian * i) * outerEndStickCircleRadius),
                     center.y + (sin(oneSecondOrMinuteRadian * i) * outerEndStickCircleRadius)
                 ),
-                strokeWidth,
+                stickWidth,
             )
 
             drawScope.drawSticks(
                 Offset(
-                    center.x + (cos(oneSecondOrMinuteRadian * i) * innerEndStickCircleRadius),
-                    center.y - (sin(oneSecondOrMinuteRadian * i) * innerEndStickCircleRadius)
+                    center.x + (cos(oneSecondOrMinuteRadian * i) * (innerEndStickCircleRadius + extraLength)),
+                    center.y - (sin(oneSecondOrMinuteRadian * i) * (innerEndStickCircleRadius + extraLength))
                 ),
                 Offset(
                     center.x + (cos(oneSecondOrMinuteRadian * i) * outerEndStickCircleRadius),
                     center.y - (sin(oneSecondOrMinuteRadian * i) * outerEndStickCircleRadius)
                 ),
-                strokeWidth,
+                stickWidth,
             )
         }
 
+        val fullClock = 12
+        val halfClock = fullClock / 2
+        var numberXCoordinate = 0f
+        var numberYCoordinate = 0f
         for (i in fullClock downTo 7) { // draw numbers
-            relativeNumberBaseline = (fullClock - i) / halfClock.toFloat()
-            numberPaint.getTextBounds("$i", 0, "$i".length, rect)
+            var number = "$i"
+            var relativeNumberBaseline = (fullClock - i) / halfClock.toFloat()
+            numberPaint.getTextBounds(number, 0, number.length, numberBounds)
 
             if (cos(currentRadian) in 0f..0.000001f) // since we are going counterclockwise from 12 to 7,
             // the only hour when cos equals 0 is 12, which is the first loop
             {
-                textX =
-                    center.x - rect.width() / 2 + rect.left
-                textY =
-                    center.y - sin(currentRadian).toFloat() * innerEndStickCircleRadius - rect.top * (1 - relativeNumberBaseline)
+                numberXCoordinate =
+                    center.x - (numberPaint.measureText(number)) / 2
+                numberYCoordinate =
+                    center.y - sin(currentRadian).toFloat() * numberCircleRadius - numberBounds.top * (1 - relativeNumberBaseline)
                 drawScope.drawIntoCanvas {
                     it.nativeCanvas.drawText(
-                        "$i",
-                        textX,
-                        textY,
+                        number,
+                        numberXCoordinate,
+                        numberYCoordinate,
                         numberPaint
                     )
                 }
 
-                numberPaint.getTextBounds("${i - 6}", 0, "${i - 6}".length, rect)
-                textY =
-                    center.y + sin(currentRadian).toFloat() * innerEndStickCircleRadius - rect.top * relativeNumberBaseline
+                number = "${i - 6}"
+                numberPaint.getTextBounds(number, 0, number.length, numberBounds)
+                numberXCoordinate =
+                    center.x - (numberPaint.measureText(number)) / 2
+                numberYCoordinate =
+                    center.y + sin(currentRadian).toFloat() * numberCircleRadius - numberBounds.top * relativeNumberBaseline
                 drawScope.drawIntoCanvas {
                     it.nativeCanvas.drawText( // then we draw the opposite number
-                        "${i - 6}",
-                        textX,
-                        textY,
+                        number,
+                        numberXCoordinate,
+                        numberYCoordinate,
                         numberPaint
                     )
                 }
             } else {
-                textX =
-                    center.x + cos(currentRadian).toFloat() * innerEndStickCircleRadius
-                textY =
-                    center.y - sin(currentRadian).toFloat() * innerEndStickCircleRadius - rect.top * (1 - relativeNumberBaseline)
+                numberXCoordinate =
+                    center.x + cos(currentRadian).toFloat() * numberCircleRadius
+                numberYCoordinate =
+                    center.y - sin(currentRadian).toFloat() * numberCircleRadius - numberBounds.top * (1 - relativeNumberBaseline)
                 drawScope.drawIntoCanvas {
                     it.nativeCanvas.drawText(
-                        "$i",
-                        textX,
-                        textY,
+                        number,
+                        numberXCoordinate,
+                        numberYCoordinate,
                         numberPaint
                     )
                 }
-
-                numberPaint.getTextBounds("${i - 6}", 0, "${i - 6}".length, rect)
-                textX =
-                    center.x - cos(currentRadian).toFloat() * innerEndStickCircleRadius - rect.width()
-                textY =
-                    center.y + sin(currentRadian).toFloat() * innerEndStickCircleRadius - rect.top * relativeNumberBaseline
+                number = "${i - 6}"
+                numberPaint.getTextBounds(number, 0, number.length, numberBounds)
+                numberXCoordinate =
+                    center.x - cos(currentRadian).toFloat() * numberCircleRadius - numberPaint.measureText(
+                        number
+                    )
+                numberYCoordinate =
+                    center.y + sin(currentRadian).toFloat() * numberCircleRadius - numberBounds.top * relativeNumberBaseline
                 drawScope.drawIntoCanvas {
                     it.nativeCanvas.drawText(
-                        "${i - 6}",
-                        textX,
-                        textY,
+                        number,
+                        numberXCoordinate,
+                        numberYCoordinate,
                         numberPaint
                     )
                 }
@@ -134,6 +155,8 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var caseRadius: Float =
 
             currentRadian += oneSecondOrMinuteRadian * 5
         }
+
+        drawScope.drawLine(Color.Black, Offset(center.x, center.y),Offset())
     }
 
     private fun DrawScope.drawSticks(start: Offset, end: Offset, strokeWidth: Float) {
@@ -149,7 +172,16 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var caseRadius: Float =
 
 @Composable
 fun ClockCanvas(modifier: Modifier, clockGraphics: ClockGraphics) {
-    Canvas(modifier = modifier, onDraw = { clockGraphics.draw(this) })
+    var sec by remember {
+        mutableStateOf(0)
+    }
+    LaunchedEffect(key1 = Unit) {
+        launch {
+            sec = LocalTime.now().second
+            delay(2)
+        }
+    }
+    Canvas(modifier = modifier, onDraw = { clockGraphics.draw(this, sec) })
 }
 
 /*
@@ -173,8 +205,8 @@ fun DrawScope.drawClock(clockGraphics: ClockGraphics) {
         drawLine(
             color = stickColor,
             start = Offset(
-                center.x - (cos(oneSecondOrMinuteRadian * i) * innerEndStickCircleRadius),
-                center.y + (sin(oneSecondOrMinuteRadian * i) * innerEndStickCircleRadius)
+                center.x - (cos(oneSecondOrMinuteRadian * i) * (innerEndStickCircleRadius + extraLength)),
+                center.y + (sin(oneSecondOrMinuteRadian * i) * (innerEndStickCircleRadius + extraLength))
             ),
             end = Offset(
                 center.x - (cos(oneSecondOrMinuteRadian * i) * outerEndStickCircleRadius),
@@ -187,8 +219,8 @@ fun DrawScope.drawClock(clockGraphics: ClockGraphics) {
         drawLine(
             color = stickColor,
             start = Offset(
-                center.x + (cos(oneSecondOrMinuteRadian * i) * innerEndStickCircleRadius),
-                center.y - (sin(oneSecondOrMinuteRadian * i) * innerEndStickCircleRadius)
+                center.x + (cos(oneSecondOrMinuteRadian * i) * (innerEndStickCircleRadius + extraLength)),
+                center.y - (sin(oneSecondOrMinuteRadian * i) * (innerEndStickCircleRadius + extraLength))
             ),
             end = Offset(
                 center.x + (cos(oneSecondOrMinuteRadian * i) * outerEndStickCircleRadius),
@@ -220,7 +252,7 @@ fun DrawScope.drawClock(clockGraphics: ClockGraphics) {
             textX =
                 center.x - rect.width() / 2 + rect.left
             textY =
-                center.y - sin(currentRadian).toFloat() * innerEndStickCircleRadius - rect.top * (1 - relativeNumberBaseline)
+                center.y - sin(currentRadian).toFloat() * (innerEndStickCircleRadius + extraLength) - rect.top * (1 - relativeNumberBaseline)
             drawIntoCanvas {
                 it.nativeCanvas.drawText(
                     "$i",
@@ -232,7 +264,7 @@ fun DrawScope.drawClock(clockGraphics: ClockGraphics) {
 
             paint.getTextBounds("${i - 6}", 0, "${i - 6}".length, rect)
             textY =
-                center.y + sin(currentRadian).toFloat() * innerEndStickCircleRadius - rect.top * relativeNumberBaseline
+                center.y + sin(currentRadian).toFloat() * (innerEndStickCircleRadius + extraLength) - rect.top * relativeNumberBaseline
             drawIntoCanvas {
                 it.nativeCanvas.drawText( // then we draw the opposite number
                     "${i - 6}",
@@ -243,9 +275,9 @@ fun DrawScope.drawClock(clockGraphics: ClockGraphics) {
             }
         } else {
             textX =
-                center.x + cos(currentRadian).toFloat() * innerEndStickCircleRadius
+                center.x + cos(currentRadian).toFloat() * (innerEndStickCircleRadius + extraLength)
             textY =
-                center.y - sin(currentRadian).toFloat() * innerEndStickCircleRadius - rect.top * (1 - relativeNumberBaseline)
+                center.y - sin(currentRadian).toFloat() * (innerEndStickCircleRadius + extraLength) - rect.top * (1 - relativeNumberBaseline)
             drawIntoCanvas {
                 it.nativeCanvas.drawText(
                     "$i",
@@ -257,9 +289,9 @@ fun DrawScope.drawClock(clockGraphics: ClockGraphics) {
 
             paint.getTextBounds("${i - 6}", 0, "${i - 6}".length, rect)
             textX =
-                center.x - cos(currentRadian).toFloat() * innerEndStickCircleRadius - rect.width()
+                center.x - cos(currentRadian).toFloat() * (innerEndStickCircleRadius + extraLength) - rect.width()
             textY =
-                center.y + sin(currentRadian).toFloat() * innerEndStickCircleRadius - rect.top * relativeNumberBaseline
+                center.y + sin(currentRadian).toFloat() * (innerEndStickCircleRadius + extraLength) - rect.top * relativeNumberBaseline
             drawIntoCanvas {
                 it.nativeCanvas.drawText(
                     "${i - 6}",

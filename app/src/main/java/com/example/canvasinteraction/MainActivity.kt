@@ -33,6 +33,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colors.background
                 ) {
                     ClockCanvas(modifier = Modifier, clockGraphics = clockGraphics)
+//                    TextBoundsExperiment()
                 }
             }
         }
@@ -43,43 +44,38 @@ class MainActivity : ComponentActivity() {
 fun TextBoundsExperiment() {
     Canvas(modifier = Modifier) {
         drawIntoCanvas {
-            val text = "9"
+            val text = "${12 - 6}"
             val paint = android.graphics.Paint().apply {
                 textSize = 60f
                 color = Color.Red.toArgb()
             }
-            val rect = Rect()
-            paint.getTextBounds(text, 0, text.length, rect)
-            var baseline = 10 - rect.top.toFloat()
+            val textBounds = Rect()
+            paint.getTextBounds(text, 0, text.length, textBounds)
+            val textMeasured = paint.measureText(text)
+            var baseline = 10 - textBounds.top.toFloat()
             it.nativeCanvas.drawText(text, 5.dp.toPx(), baseline, paint)
             drawLine(
                 Color.Blue,
                 Offset(
-                    5.dp.toPx() + rect.left,
-                    baseline + rect.top
+                    5.dp.toPx(),
+                    baseline + textBounds.top
                 ),
                 Offset(
-                    5.dp.toPx() + rect.left + rect.width(),
-                    baseline + rect.top
+                    5.dp.toPx() + textMeasured,
+                    baseline + textBounds.top
                 )
             )
             drawLine(
                 Color.Blue,
                 Offset(
-                    5.dp.toPx() + rect.left,
-                    baseline + rect.bottom.toFloat()
+                    5.dp.toPx() + textBounds.left,
+                    baseline + textBounds.bottom.toFloat()
                 ),
                 Offset(
-                    5.dp.toPx() + rect.left + rect.width(),
-                    baseline + rect.bottom.toFloat()
+                    5.dp.toPx() + textBounds.left + textBounds.width(),
+                    baseline + textBounds.bottom.toFloat()
                 )
             )
-
-            baseline = 10 - rect.top.toFloat() * .5f
-            it.nativeCanvas.drawText(text, 25.dp.toPx(), baseline, paint)
-
-            baseline = 10 - rect.top.toFloat() * (5 / 6f)
-            it.nativeCanvas.drawText(text, 45.dp.toPx(), baseline, paint)
         }
     }
 }
