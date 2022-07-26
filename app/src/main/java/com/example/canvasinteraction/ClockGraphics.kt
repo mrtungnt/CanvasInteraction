@@ -12,14 +12,14 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import kotlin.math.cos
 import kotlin.math.sin
 
-class ClockGraphics(var center: Offset = Offset(0f, 0f), var caseRadius: Float = 0f) {
-    private var outerEndStickCircleRadius = 0f
+class ClockGraphics(var center: Offset = Offset(0f, 0f), var radius: Float = 0f) {
     private val oneSecondOrMinuteRadian = Math.toRadians(360.0 / 60).toFloat()
     private var stickColor = Color.Black
     var numberColor = Color.Black
@@ -39,20 +39,23 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var caseRadius: Float =
         isAntiAlias = true
         isDither = true
     }
-    private var currentRadian = Math.toRadians(90.0)
     private val numberBounds = Rect()
 
-    fun draw(drawScope: DrawScope, second: Int) {
+    fun draw(drawScope: DrawScope, time: LocalTime) {
         center = Offset(drawScope.size.width / 2f, drawScope.size.height / 2f)
-        caseRadius = drawScope.size.minDimension / 2.2f
-        outerEndStickCircleRadius = caseRadius - 10
+        radius = drawScope.size.minDimension / 2.2f
+        var outerEndStickCircleRadius = radius - 10
         var innerEndStickCircleRadius = outerEndStickCircleRadius - 30
         var numberCircleRadius = innerEndStickCircleRadius - 15
         var secHandLength = numberCircleRadius - 100
+        var minHandLength = numberCircleRadius - 110
+        var hourHandLength = numberCircleRadius - 180
 
         drawScope.drawIntoCanvas {
-            it.nativeCanvas.drawCircle(center.x, center.y, caseRadius, casePaint)
+            it.nativeCanvas.drawCircle(center.x, center.y, radius, casePaint)
         }
+
+        var currentRadian = Math.toRadians(90.0)
 
         for (i in 0..29) { // draw sticks
             var isFactorOf5 = i.mod(5) == 0
@@ -156,7 +159,36 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var caseRadius: Float =
             currentRadian += oneSecondOrMinuteRadian * 5
         }
 
-        drawScope.drawLine(Color.Black, Offset(center.x, center.y),Offset())
+        val secondRadian = currentRadian - time.second * oneSecondOrMinuteRadian
+        drawScope.drawLine(
+            color = Color.Black, start = Offset(center.x, center.y),
+            end = Offset(
+                center.x + cos(secondRadian).toFloat() * secHandLength,
+                center.y - sin(secondRadian).toFloat() * secHandLength
+            ),
+            strokeWidth = 3.dp.value.toFloat(),
+        )
+
+        val minRadian = currentRadian - time.minute * oneSecondOrMinuteRadian
+        drawScope.drawLine(
+            color = Color.Black, start = Offset(center.x, center.y),
+            end = Offset(
+                center.x + cos(minRadian).toFloat() * minHandLength,
+                center.y - sin(minRadian).toFloat() * minHandLength
+            ),
+            strokeWidth = 6.dp.value.toFloat(),
+        )
+
+        val oneHourRadian = Math.toRadians(360.0 / 12)
+        val hourRadian = currentRadian - time.hour * oneHourRadian
+        drawScope.drawLine(
+            color = Color.Black, start = Offset(center.x, center.y),
+            end = Offset(
+                center.x + cos(hourRadian).toFloat() * hourHandLength,
+                center.y - sin(hourRadian).toFloat() * hourHandLength
+            ),
+            strokeWidth = 10.dp.value.toFloat(),
+        )
     }
 
     private fun DrawScope.drawSticks(start: Offset, end: Offset, strokeWidth: Float) {
@@ -172,16 +204,18 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var caseRadius: Float =
 
 @Composable
 fun ClockCanvas(modifier: Modifier, clockGraphics: ClockGraphics) {
-    var sec by remember {
-        mutableStateOf(0)
+    var time by remember {
+        mutableStateOf(java.time.LocalTime.now())
     }
     LaunchedEffect(key1 = Unit) {
         launch {
-            sec = LocalTime.now().second
-            delay(2)
+            while (true) {
+                delay(1000)
+                time = java.time.LocalTime.now()
+            }
         }
     }
-    Canvas(modifier = modifier, onDraw = { clockGraphics.draw(this, sec) })
+    Canvas(modifier = modifier, onDraw = { clockGraphics.draw(this, time) })
 }
 
 /*
