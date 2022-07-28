@@ -16,13 +16,14 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalTime
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
 class ClockGraphics(var center: Offset = Offset(0f, 0f), var radius: Float = 0f) {
-    private val oneSecondRadian = Math.toRadians(360.0 / 60)
+    private val oneSecondRadian = (2 * PI) / 60f
     private val oneMinuteRadian = oneSecondRadian
-    private val oneHourRadian = Math.toRadians(360.0 / 12)
+    private val oneHourRadian = (2 * PI) / 12f
     private var stickColor = Color.Black
     var numberColor = Color.Black
     private var smallStroke = 2f
@@ -42,7 +43,14 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var radius: Float = 0f)
         isDither = true
     }
     private val numberBounds = Rect()
-    private val spotOf12 = Math.toRadians(90.0)
+    private val spotOf12 = PI / 2f
+    private val handTailLength = 10.0f
+    private val secondHandWidth = 3.dp.value
+    private val minuteHandWidth = 8.dp.value
+    private val hourHandWidth = 15.dp.value
+    var handColor = Color.Black
+    private val fullClock = 12
+    private val halfClock = fullClock / 2
 
     fun draw(drawScope: DrawScope, time: LocalTime) {
         center = Offset(drawScope.size.width / 2f, drawScope.size.height / 2f)
@@ -64,94 +72,81 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var radius: Float = 0f)
             val isFactorOf5 = i.mod(5) == 0
             val stickWidth = if (isFactorOf5) bigStroke else smallStroke
             val extraLength = if (isFactorOf5) 0f else 10f
+            val innerRelativeX =
+                cos(oneSecondRadian * i).toFloat() * (innerEndStickCircleRadius + extraLength)
+            val innerRelativeY =
+                sin(oneSecondRadian * i).toFloat() * (innerEndStickCircleRadius + extraLength)
+            val outerRelativeX = cos(oneSecondRadian * i).toFloat() * outerEndStickCircleRadius
+            val outerRelativeY = sin(oneSecondRadian * i).toFloat() * outerEndStickCircleRadius
             drawScope.drawSticks(
                 Offset(
-                    center.x - (cos(oneSecondRadian * i).toFloat() * (innerEndStickCircleRadius + extraLength)),
-                    center.y + (sin(oneSecondRadian * i).toFloat() * (innerEndStickCircleRadius + extraLength))
+                    center.x - innerRelativeX,
+                    center.y + innerRelativeY
                 ),
                 Offset(
-                    center.x - (cos(oneSecondRadian * i).toFloat() * outerEndStickCircleRadius),
-                    center.y + (sin(oneSecondRadian * i).toFloat() * outerEndStickCircleRadius)
+                    center.x - outerRelativeX,
+                    center.y + outerRelativeY
                 ),
                 stickWidth,
             )
 
             drawScope.drawSticks(
                 Offset(
-                    center.x + (cos(oneSecondRadian * i).toFloat() * (innerEndStickCircleRadius + extraLength)),
-                    center.y - (sin(oneSecondRadian * i).toFloat() * (innerEndStickCircleRadius + extraLength))
+                    center.x + innerRelativeX,
+                    center.y - innerRelativeY
                 ),
                 Offset(
-                    center.x + (cos(oneSecondRadian * i).toFloat() * outerEndStickCircleRadius),
-                    center.y - (sin(oneSecondRadian * i).toFloat() * outerEndStickCircleRadius)
+                    center.x + outerRelativeX,
+                    center.y - outerRelativeY
                 ),
                 stickWidth,
             )
         }
 
-        val fullClock = 12
-        val halfClock = fullClock / 2
-
         for (i in fullClock downTo 7) { // draw numbers
             var number = "$i"
             val relativeNumberBaseline = (fullClock - i) / halfClock.toFloat()
             numberPaint.getTextBounds(number, 0, number.length, numberBounds)
+            val relativeXOfNumberMarker = cos(numberMarker).toFloat() * numberCircleRadius
+            val relativeYOfNumberMarker = sin(numberMarker).toFloat() * numberCircleRadius
             if (cos(numberMarker) in 0f..0.000001f) // since we are going counterclockwise from 12 to 7,
             // the only hour when cos equals 0 is 12, which is the first loop
             {
-                var numberXCoordinate =
-                    center.x - (numberPaint.measureText(number)) / 2
-                var numberYCoordinate =
-                    center.y - sin(numberMarker).toFloat() * numberCircleRadius - numberBounds.top * (1 - relativeNumberBaseline)
                 drawScope.drawIntoCanvas {
                     it.nativeCanvas.drawText(
                         number,
-                        numberXCoordinate,
-                        numberYCoordinate,
+                        center.x - (numberPaint.measureText(number)) / 2,
+                        center.y - relativeYOfNumberMarker - numberBounds.top * (1 - relativeNumberBaseline),
                         numberPaint
                     )
                 }
 
                 number = "${i - 6}"
                 numberPaint.getTextBounds(number, 0, number.length, numberBounds)
-                numberXCoordinate =
-                    center.x - (numberPaint.measureText(number)) / 2
-                numberYCoordinate =
-                    center.y + sin(numberMarker).toFloat() * numberCircleRadius - numberBounds.top * relativeNumberBaseline
                 drawScope.drawIntoCanvas {
                     it.nativeCanvas.drawText( // then we draw the opposite number
                         number,
-                        numberXCoordinate,
-                        numberYCoordinate,
+                        center.x - (numberPaint.measureText(number)) / 2,
+                        center.y + relativeYOfNumberMarker - numberBounds.top * relativeNumberBaseline,
                         numberPaint
                     )
                 }
             } else {
-                var numberXCoordinate =
-                    center.x + cos(numberMarker).toFloat() * numberCircleRadius
-                var numberYCoordinate =
-                    center.y - sin(numberMarker).toFloat() * numberCircleRadius - numberBounds.top * (1 - relativeNumberBaseline)
                 drawScope.drawIntoCanvas {
                     it.nativeCanvas.drawText(
                         number,
-                        numberXCoordinate,
-                        numberYCoordinate,
+                        center.x + relativeXOfNumberMarker,
+                        center.y - relativeYOfNumberMarker - numberBounds.top * (1 - relativeNumberBaseline),
                         numberPaint
                     )
                 }
                 number = "${i - 6}"
                 numberPaint.getTextBounds(number, 0, number.length, numberBounds)
-                numberXCoordinate =
-                    center.x - cos(numberMarker).toFloat() * numberCircleRadius - numberPaint.measureText(
-                        number
-                    )
-                numberYCoordinate =
-                    center.y + sin(numberMarker).toFloat() * numberCircleRadius - numberBounds.top * relativeNumberBaseline
                 drawScope.drawIntoCanvas {
                     it.nativeCanvas.drawText(
                         number,
-                        numberXCoordinate,
-                        numberYCoordinate,
+                        center.x - relativeXOfNumberMarker - numberPaint.measureText(number),
+                        center.y + relativeYOfNumberMarker - numberBounds.top * relativeNumberBaseline,
                         numberPaint
                     )
                 }
@@ -159,12 +154,6 @@ class ClockGraphics(var center: Offset = Offset(0f, 0f), var radius: Float = 0f)
 
             numberMarker += oneSecondRadian * 5
         }
-
-        val handTailLength = 10.0f
-        val secondHandWidth = 3.dp.value
-        val minuteHandWidth = 8.dp.value
-        val hourHandWidth = 15.dp.value
-        val handColor = Color.Black
 
         val secondRadian = spotOf12 - time.second * oneSecondRadian
         drawScope.drawLine(
